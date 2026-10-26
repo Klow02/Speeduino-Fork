@@ -38,6 +38,7 @@
 #include "src/controllers/progammableIO/programmableIOControl.h"
 #include "src/controllers/tacho/tachoController.h"
 #include "src/controllers/launch/launchController.h"
+#include "src/controllers/gearbox/gearboxController.h"
 #include "src/controllers/ignBypass/ignBypassControl.h"
 #include "src/controllers/auxChannels/auxChannelController.h"
 
@@ -183,6 +184,7 @@ void initialiseAll(void)
     initialiseProgrammableIO(configPage13);
     initialiseFlexSensor(configPage2, currentStatus, pinNumbers.pinFlex);
     initialiseLaunchControl(currentStatus, configPage6, pinNumbers);
+    initialiseGearbox(currentStatus, pinNumbers);
     initialiseIgnBypass(currentStatus, configPage4, pinNumbers);
 
     //Same as above, but for the VSS input

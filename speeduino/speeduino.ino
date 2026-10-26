@@ -54,6 +54,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "resetControl.h"
 #include "scheduler_ignition_controller.h"
 #include "src/controllers/launch/launchController.h"
+#include "src/controllers/gearbox/gearboxController.h"
 #include "src/controllers/fuelPump/fuelPumpController.h"
 #include "scheduler_fuel_controller.h"
 #include "src/controllers/tsCommand/tsCommandController.h"
@@ -280,6 +281,7 @@ BEGIN_LTO_ALWAYS_INLINE(void) loop(void)
       if( (isEepromWritePending() == true) && (serialStatusFlag == SERIAL_INACTIVE) && storageWriteTimeoutExpired()) { saveAllPages(); } 
     }
     updateLaunchAndFlatShift(currentStatus, configPage2, configPage6, configPage10, configPage15);
+    gearboxControl(currentStatus, configPage2);
     if (BIT_CHECK(currentStatus.LOOP_TIMER, BIT_TIMER_15HZ)) //Every 32 loops
     {
       #if defined(NATIVE_CAN_AVAILABLE)

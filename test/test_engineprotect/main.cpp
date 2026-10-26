@@ -890,6 +890,128 @@ static void test_calculateFuelIgnitionChannelCut_hardcut_full_both(void)
     TEST_ASSERT_EQUAL(SchedulerCutStatus::Full, onOff.status);
 }
 
+extern statuses::scheduler_cut_t applyShiftCut(statuses::scheduler_cut_t cutState, const statuses &current);
+
+static void test_applyShiftCut_noShiftCutLeavesStateUntouched(void)
+{
+    statuses current = {};
+    statuses::scheduler_cut_t cutState;
+    cutState.ignitionChannels = 0xA5;
+    cutState.fuelChannels = 0x5A;
+    cutState.ignitionChannelsPending = 0x01;
+    cutState.status = SchedulerCutStatus::Rolling;
+
+    auto result = applyShiftCut(cutState, current);
+
+    TEST_ASSERT_EQUAL_HEX8(0xA5, result.ignitionChannels);
+    TEST_ASSERT_EQUAL_HEX8(0x5A, result.fuelChannels);
+    TEST_ASSERT_EQUAL_HEX8(0x01, result.ignitionChannelsPending);
+    TEST_ASSERT_EQUAL(SchedulerCutStatus::Rolling, result.status);
+}
+
+static void test_applyShiftCut_ignitionOnly(void)
+{
+    statuses current = {};
+    current.gearbox.cutIgnition = true;
+
+    auto result = applyShiftCut(statuses::scheduler_cut_t(), current);
+
+    TEST_ASSERT_EQUAL_HEX8(0x00, result.ignitionChannels);
+    TEST_ASSERT_EQUAL_HEX8(0xFF, result.fuelChannels);
+    TEST_ASSERT_EQUAL(SchedulerCutStatus::Full, result.status);
+}
+
+static void test_applyShiftCut_fuelOnly(void)
+{
+    statuses current = {};
+    current.gearbox.cutFuel = true;
+
+    auto result = applyShiftCut(statuses::scheduler_cut_t(), current);
+
+    TEST_ASSERT_EQUAL_HEX8(0xFF, result.ignitionChannels);
+    TEST_ASSERT_EQUAL_HEX8(0x00, result.fuelChannels);
+    TEST_ASSERT_EQUAL(SchedulerCutStatus::Full, result.status);
+}
+
+static void test_applyShiftCut_both(void)
+{
+    statuses current = {};
+    current.gearbox.cutIgnition = true;
+    current.gearbox.cutFuel = true;
+
+    auto result = applyShiftCut(statuses::scheduler_cut_t(), current);
+
+    TEST_ASSERT_EQUAL_HEX8(0x00, result.ignitionChannels);
+    TEST_ASSERT_EQUAL_HEX8(0x00, result.fuelChannels);
+    TEST_ASSERT_EQUAL(SchedulerCutStatus::Full, result.status);
+}
+
+static void test_applyShiftCut_clearsPendingIgnitionChannels(void)
+{
+    statuses current = {};
+    current.gearbox.cutIgnition = true;
+    statuses::scheduler_cut_t cutState;
+    cutState.ignitionChannelsPending = 0x0F;
+
+    auto result = applyShiftCut(cutState, current);
+
+    TEST_ASSERT_EQUAL_HEX8(0x00, result.ignitionChannelsPending);
+}
+
+static void test_calculateFuelIgnitionChannelCut_shiftCut_ignitionOnly(void)
+{
+    engineProtection_test_context_t context;
+    context.setBeyondStaging();
+    context.current.gearbox.cutIgnition = true;
+
+    context.current.engineProtect = checkEngineProtection(context.current, context.page4, context.page6, context.page9, context.page10);
+    auto onOff = calculateFuelIgnitionChannelCut(context.current, context.page2, context.page4, context.page6, context.page9);
+
+    TEST_ASSERT_EQUAL_HEX8(0xFF, onOff.fuelChannels);
+    TEST_ASSERT_EQUAL_HEX8(0x00, onOff.ignitionChannels);
+    TEST_ASSERT_EQUAL(SchedulerCutStatus::Full, onOff.status);
+}
+
+static void test_calculateFuelIgnitionChannelCut_shiftCut_appliesEvenWhenEngineProtectionIsOff(void)
+{
+    engineProtection_test_context_t context;
+    context.setBeyondStaging();
+    context.page6.engineProtectType = PROTECT_CUT_OFF;
+    context.current.gearbox.cutIgnition = true;
+
+    auto onOff = calculateFuelIgnitionChannelCut(context.current, context.page2, context.page4, context.page6, context.page9);
+
+    TEST_ASSERT_EQUAL_HEX8(0x00, onOff.ignitionChannels);
+    TEST_ASSERT_EQUAL_HEX8(0xFF, onOff.fuelChannels);
+}
+
+static void test_calculateFuelIgnitionChannelCut_shiftCut_addsToARevLimitCut(void)
+{
+    engineProtection_test_context_t context;
+    context.setHardCutFull();
+    context.setRpmActive(HARD_REV_FIXED);
+    context.page6.engineProtectType = PROTECT_CUT_FUEL;   // rev limiter cuts fuel...
+    context.current.gearbox.cutIgnition = true;            // ...shift cut takes the ignition too
+
+    auto onOff = calculateFuelIgnitionChannelCut(context.current, context.page2, context.page4, context.page6, context.page9);
+
+    TEST_ASSERT_EQUAL_HEX8(0x00, onOff.fuelChannels);
+    TEST_ASSERT_EQUAL_HEX8(0x00, onOff.ignitionChannels);
+}
+
+static void test_calculateFuelIgnitionChannelCut_shiftCut_masksUnusedChannels(void)
+{
+    engineProtection_test_context_t context;
+    context.setBeyondStaging();
+    context.current.maxIgnOutputs = 4;
+    context.current.gearbox.cutFuel = true;
+
+    auto onOff = calculateFuelIgnitionChannelCut(context.current, context.page2, context.page4, context.page6, context.page9);
+
+    TEST_ASSERT_EQUAL_HEX8(0x0F, onOff.ignitionChannels); // unused channels stay masked off
+    TEST_ASSERT_EQUAL_HEX8(0x00, onOff.fuelChannels);
+}
+
 static void test_calculateFuelIgnitionChannelCut_rolling_cut_ignition_only(void)
 {
     engineProtection_test_context_t context;
@@ -1684,6 +1806,15 @@ static void test_RollingCut_masks_unused(void)
     RUN_TEST_P(test_FullCut_masks_unused);
     RUN_TEST_P(test_NoCut_masks_unused);
     RUN_TEST_P(test_RollingCut_masks_unused);
+    RUN_TEST_P(test_applyShiftCut_noShiftCutLeavesStateUntouched);
+    RUN_TEST_P(test_applyShiftCut_ignitionOnly);
+    RUN_TEST_P(test_applyShiftCut_fuelOnly);
+    RUN_TEST_P(test_applyShiftCut_both);
+    RUN_TEST_P(test_applyShiftCut_clearsPendingIgnitionChannels);
+    RUN_TEST_P(test_calculateFuelIgnitionChannelCut_shiftCut_ignitionOnly);
+    RUN_TEST_P(test_calculateFuelIgnitionChannelCut_shiftCut_appliesEvenWhenEngineProtectionIsOff);
+    RUN_TEST_P(test_calculateFuelIgnitionChannelCut_shiftCut_addsToARevLimitCut);
+    RUN_TEST_P(test_calculateFuelIgnitionChannelCut_shiftCut_masksUnusedChannels);
     }
 }
 

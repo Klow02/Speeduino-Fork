@@ -11,6 +11,7 @@
 #include "bit_manip.h"
 #include "maths.h"
 #include "decoder_t.h"
+#include "src/controllers/gearbox/gearboxStateMachine.h"
 
 // Forward declares
 struct config4;
@@ -385,4 +386,5 @@ struct statuses {
   vvtStatus_t vvt2;
 
   launchStatus_t launchStatus;
+  gearboxStatus_t gearbox; ///< Paddle shift sequencer status. @see gearboxControl
 };

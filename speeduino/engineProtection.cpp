@@ -452,6 +452,29 @@ statuses::scheduler_cut_t maskUnusedChannels(statuses::scheduler_cut_t cutState,
   return cutState;
 }
 
+/**
+ * @brief Apply the gearbox shift cut on top of whatever the protection logic decided.
+ *
+ * The shift cut can only remove channels: if the rev limiter already cut something it stays cut.
+ */
+TESTABLE_INLINE_STATIC statuses::scheduler_cut_t applyShiftCut(statuses::scheduler_cut_t cutState, const statuses &current)
+{
+  if (current.gearbox.cutIgnition || current.gearbox.cutFuel)
+  {
+    if (current.gearbox.cutIgnition)
+    {
+      cutState.ignitionChannels = 0x00U;
+      cutState.ignitionChannelsPending = 0x00U;
+    }
+    if (current.gearbox.cutFuel)
+    {
+      cutState.fuelChannels = 0x00U;
+    }
+    cutState.status = SchedulerCutStatus::Full;
+  }
+  return cutState;
+}
+
 BEGIN_LTO_ALWAYS_INLINE(statuses::scheduler_cut_t) calculateFuelIgnitionChannelCut(const statuses &current, const config2 &page2, const config4 &page4, const config6 &page6, const config9 &page9)
 {
   statuses::scheduler_cut_t cutState = CUT_NONE;
@@ -484,6 +507,6 @@ BEGIN_LTO_ALWAYS_INLINE(statuses::scheduler_cut_t) calculateFuelIgnitionChannelC
     // Nothing to do - default CUT_NONE will apply no cuts
   }
 
-  return maskUnusedChannels(cutState, current);
+  return maskUnusedChannels(applyShiftCut(cutState, current), current);
 }
 END_LTO_INLINE()

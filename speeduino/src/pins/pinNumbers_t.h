@@ -85,6 +85,9 @@ struct pinNumbers_t
   uint8_t pinLaunch = NOT_A_PIN;
   uint8_t pinIgnBypass = NOT_A_PIN; //The pin used for an ignition bypass (Optional)
   uint8_t pinFlex = NOT_A_PIN; //Pin with the flex sensor attached
+  uint8_t pinPaddleUp = NOT_A_PIN; //Upshift paddle input (Gearbox controller)
+  uint8_t pinPaddleDown = NOT_A_PIN; //Downshift paddle input (Gearbox controller)
+  uint8_t pinNeutral = NOT_A_PIN; //Neutral switch input (Gearbox controller, optional)
   uint8_t pinVSS = NOT_A_PIN; 
   uint8_t pinBaro = NOT_A_PIN; //Pin that an external barometric pressure sensor is attached to (If used)
   uint8_t pinResetControl = NOT_A_PIN; // Output pin used control resetting the Arduino
