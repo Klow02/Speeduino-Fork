@@ -361,6 +361,12 @@ static page_map_t getPageMap(uint8_t pageNumber)
     makeEntity(&configPage15, sizeof(configPage15)),
   };
 
+  // Page 16: the CAN message table. A raw block of config16 (= one canTableConfig_t, 876 bytes), which is exactly the
+  // layout the TunerStudio ini describes (channels, then 16 messages, then 64 signals).
+  static constexpr entity_t canTablePageMap[] PROGMEM = {
+    makeEntity(&configPage16, sizeof(configPage16)),
+  };
+
   static constexpr page_map_t pageMaps[MAX_PAGE_NUM] PROGMEM = {
     { pageZeroMap, _countof(pageZeroMap) },
     { veSetPageMap, _countof(veSetPageMap) },
@@ -378,6 +384,7 @@ static page_map_t getPageMap(uint8_t pageNumber)
     { progOutsPageMap, _countof(progOutsPageMap) },    
     { ign2PageMap, _countof(ign2PageMap) },
     { boostVvt2PageMap, _countof(boostVvt2PageMap) },
+    { canTablePageMap, _countof(canTablePageMap) },
   };
 
   if (pageNumber>=MAX_PAGE_NUM)

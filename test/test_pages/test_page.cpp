@@ -1,5 +1,6 @@
 #include <unity.h>
 #include "pages.h"
+#include "globals.h"
 #include "../test_utils.h"
 
 static void assert_entity(const entity_t &entity, byte expected)
@@ -231,7 +232,7 @@ static uint16_t sumEntitySizes(uint8_t pageNum)
 static void test_sumEntity_matches_pageSize(void)
 {
     // Page sizes as defined in the .ini file
-    constexpr uint16_t ini_page_sizes[] = { 0, 128, 288, 288, 128, 288, 128, 240, 384, 192, 192, 288, 192, 128, 288, 256 };
+    constexpr uint16_t ini_page_sizes[] = { 0, 128, 288, 288, 128, 288, 128, 240, 384, 192, 192, 288, 192, 128, 288, 256, 876 };
 
     for (uint8_t pageNum=MIN_PAGE_NUM; pageNum<MAX_PAGE_NUM; ++pageNum)
     {
@@ -335,6 +336,39 @@ static void test_unique_entities(void)
     }
 }
 
+// Page 16 is the CAN message table. TunerStudio addresses it by byte offset, so the offsets the
+// ini uses (channels at 0, messages at 12, signals at 108) must hit the right struct members.
+static void test_canTablePage_maps_to_struct(void)
+{
+    TEST_ASSERT_EQUAL(876U, getPageSize(canTablePage));
+    memset(&configPage16, 0, sizeof(configPage16));
+
+    // Message 1 (offset 12 + 1*6): id as little endian 16 bit value 0x0123.
+    TEST_ASSERT_TRUE(setPageValue(canTablePage, 12U + 6U + 0U, 0x23U));
+    TEST_ASSERT_TRUE(setPageValue(canTablePage, 12U + 6U + 1U, 0x01U));
+    TEST_ASSERT_EQUAL_HEX16(0x0123, configPage16.can.message[1].id);
+
+    // Signal 2 (offset 108 + 2*12): source is byte 1, lengthBits is byte 3.
+    TEST_ASSERT_TRUE(setPageValue(canTablePage, 108U + 2U*12U + 1U, 5U));
+    TEST_ASSERT_TRUE(setPageValue(canTablePage, 108U + 2U*12U + 3U, 16U));
+    TEST_ASSERT_EQUAL_UINT8(5U, configPage16.can.signal[2].source);
+    TEST_ASSERT_EQUAL_UINT8(16U, configPage16.can.signal[2].lengthBits);
+
+    // Channel 1 (offset 6): bitrate is bytes 2..3.
+    TEST_ASSERT_TRUE(setPageValue(canTablePage, 6U + 2U, 0xE8U));
+    TEST_ASSERT_TRUE(setPageValue(canTablePage, 6U + 3U, 0x03U));
+    TEST_ASSERT_EQUAL_UINT16(1000U, configPage16.can.channel[1].bitrateKbit);
+
+    // Last byte is valid, one past it is not.
+    TEST_ASSERT_TRUE(setPageValue(canTablePage, 875U, 1U));
+    TEST_ASSERT_FALSE(setPageValue(canTablePage, 876U, 1U));
+
+    // A tune that is set to empty also empties the CAN table (default = nothing is sent).
+    setTuneToEmpty();
+    TEST_ASSERT_EQUAL_UINT8(0U, configPage16.can.signal[2].source);
+    TEST_ASSERT_EQUAL_HEX16(0, configPage16.can.message[1].id);
+}
+
 void testPage(void) {
     SET_UNITY_FILENAME() {
         RUN_TEST(test_getEntityValue_raw);
@@ -351,5 +385,6 @@ void testPage(void) {
         RUN_TEST(print_page_layout);
         RUN_TEST(test_sumEntity_matches_pageSize);
         RUN_TEST(test_unique_entities);
+        RUN_TEST(test_canTablePage_maps_to_struct);
     }
 }

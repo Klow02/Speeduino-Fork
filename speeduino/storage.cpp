@@ -240,7 +240,7 @@ void saveAllPages(void)
   setEepromWritePending(false);
 
   uint8_t page = MIN_PAGE_NUM;
-  while (page<MAX_PAGE_NUM && !isEepromWritePending())
+  while (page<MAX_EEPROM_PAGE_NUM && !isEepromWritePending())
   {
     savePage(page);
     ++page;

@@ -88,7 +88,7 @@ static void test_no_entity_overlap(void) {
     block blocks[28];
     uint8_t idxCurrBlock = 0U;
 
-    for (uint8_t i = MIN_PAGE_NUM; i < MAX_PAGE_NUM; i++) {
+    for (uint8_t i = MIN_PAGE_NUM; i < MAX_EEPROM_PAGE_NUM; i++) {
         idxCurrBlock = test_no_overlap_page(i, blocks, _countof(blocks), idxCurrBlock);
     }
 }
@@ -212,7 +212,7 @@ static void print_eeprom_layout(void) {
     UnityPrint("Page, Index, Item, Type, Start Address, Length"); UNITY_PRINT_EOL();
     UnityPrint("-, -, Version, Other, 0, 1"); UNITY_PRINT_EOL();
     UnityPrint("-, -, Baro, Other, 3806, 1"); UNITY_PRINT_EOL();
-    for (uint8_t page = MIN_PAGE_NUM; page < MAX_PAGE_NUM; page++) {
+    for (uint8_t page = MIN_PAGE_NUM; page < MAX_EEPROM_PAGE_NUM; page++) {
         print_page_layout(page);
     }
 

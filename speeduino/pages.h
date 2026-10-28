@@ -24,8 +24,14 @@ constexpr uint8_t wmiMapPage    = 12;
 constexpr uint8_t progOutsPage  = 13;
 constexpr uint8_t ignMap2Page   = 14;
 constexpr uint8_t boostvvtPage2 = 15;
+/// Page 16 (fork addition): the configurable CAN message table (see src/controllers/canTable).
+/// It lives in RAM only and is NOT part of the 4 KB EEPROM layout (there is no room left there,
+/// the page is 876 bytes); it is persisted separately (see canTable storage, not implemented yet).
+constexpr uint8_t canTablePage  = 16;
 constexpr uint8_t MIN_PAGE_NUM  = veSetPage;
-constexpr uint8_t MAX_PAGE_NUM  = (boostvvtPage2+1U);
+constexpr uint8_t MAX_PAGE_NUM  = (canTablePage+1U);
+/// One past the last page that is stored in the EEPROM (pages 1 ... 15). Page 16 is excluded.
+constexpr uint8_t MAX_EEPROM_PAGE_NUM = (boostvvtPage2+1U);
 
 /** @name Calibration page numbers */
 ///@{

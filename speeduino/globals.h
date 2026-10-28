@@ -74,6 +74,8 @@ extern struct config9 configPage9;
 extern struct config10 configPage10;
 extern struct config13 configPage13;
 extern struct config15 configPage15;
+/** Page 16: CAN message table (configPage16.can). Empty by default. See src/controllers/canTable. */
+extern struct config16 configPage16;
 
 bool pinIsOutput(byte pin, const pinNumbers_t &pins);
 static inline bool pinIsOutput(byte pin) { return pinIsOutput(pin, pinNumbers); }
