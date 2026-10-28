@@ -9,12 +9,14 @@ void runAllTests(void)
     extern void testCanTablePacking(void);
     extern void testCanTableDdu9(void);
     extern void testCanTableScheduler(void);
+    extern void testCanTableGlue(void);
 
     testCanTableValidate();
     testCanTableScaling();
     testCanTablePacking();
     testCanTableDdu9();
     testCanTableScheduler();
+    testCanTableGlue();
 }
 
 TEST_HARNESS(runAllTests)

@@ -40,6 +40,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "engineProtection.h"
 #include "secondaryTables.h"
 #include "comms_CAN.h"
+#include "src/controllers/canTable/canTableGlue.h"
 #include "SD_logger.h"
 #include "load_source.h"
 #include "board_definition.h"
@@ -206,6 +207,10 @@ BEGIN_LTO_ALWAYS_INLINE(void) loop(void)
           }
         }   
       #endif
+
+      // Configurable CAN message table (TunerStudio page 16): sends the frames that are due.
+      // Does nothing on boards other than the Teensy 4.1 and while the table is empty.
+      canTableTask();
           
     if ( currentStatus.decoder.isEngineRunning(micros()) )
     {
