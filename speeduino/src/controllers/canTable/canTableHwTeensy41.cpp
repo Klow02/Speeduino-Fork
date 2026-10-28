@@ -16,12 +16,16 @@
  *
  *  NOT YET TESTED ON REAL HARDWARE (written without a Teensy at hand).
  */
+// globals.h must come FIRST: it pulls in the board definition, which is what defines CORE_TEENSY41.
+// (Testing CORE_TEENSY41 before this include would always be false and the file would compile to nothing,
+//  leaving canTableTask() undefined at link time.)
+#include "../../../globals.h"
+
 #if defined(CORE_TEENSY41) && !defined(UNIT_TEST)
 
 #include <Arduino.h>
 #include <FlexCAN_T4.h>
 #include "canTableGlue.h"
-#include "../../../globals.h"
 #include "../../../comms_CAN.h"
 
 // CAN3 object. Declared here (file scope) like Can0 in comms_CAN.cpp, see
