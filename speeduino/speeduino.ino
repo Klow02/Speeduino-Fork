@@ -43,6 +43,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "secondaryTables.h"
 #include "comms_CAN.h"
 #include "src/controllers/canTable/canTableGlue.h"
+#include "src/controllers/gearbox/gearboxHwArduino.h"
 #include "SD_logger.h"
 #include "schedule_calcs.h"
 #include "auxiliaries.h"
@@ -144,6 +145,10 @@ void __attribute__((always_inline)) loop(void)
       // Configurable CAN message table (TunerStudio page 16): sends the frames that are due.
       // Does nothing on boards other than the Teensy 4.1 and while the table is empty.
       canTableTask();
+
+      // Paddle shift gearbox controller: reads the paddles and runs the shift sequence.
+      // Disabled by default (see gearboxBoardSetup() in gearboxHwArduino.cpp); then this does nothing.
+      gearboxTask();
           
     if(currentLoopTime > micros_safe())
     {
@@ -916,6 +921,9 @@ void __attribute__((always_inline)) loop(void)
         } 
       }
 
+      // Gearbox shift cut: applied last, on top of whatever the rev limiter / engine protection decided.
+      // It can only switch channels OFF, never back on. Does nothing while the gearbox is disabled.
+      gearboxApplyShiftCut(ignitionChannelsOn, fuelChannelsOn, ignitionChannelsPending);
 
 #if INJ_CHANNELS >= 1
       if( (maxInjOutputs >= 1) && (currentStatus.PW1 >= inj_opentime_uS) && (BIT_CHECK(fuelChannelsOn, INJ1_CMD_BIT)) )
