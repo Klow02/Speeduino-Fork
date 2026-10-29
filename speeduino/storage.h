@@ -104,7 +104,7 @@
  * | 3283       |1           | boostControlEnableThreshold          |                                    |
  * | 3284       |14          | A/C Control Settings                 |                                    |
  * | 3298       |159         | Page 15 spare                        |                                    |
- * | 3457       |217         | EMPTY                                |                                    |
+ * | 3457       |217         | EMPTY (fork: 3458 marker, 3460..3523 gearbox page 17) |                           |
  * | 3674       |4           | CLT Calibration CRC32                |                                    |
  * | 3678       |4           | IAT Calibration CRC32                |                                    |
  * | 3682       |4           | O2 Calibration CRC32                 |                                    |
@@ -185,6 +185,11 @@ extern uint32_t deferEEPROMWritesUntil;
 #define EEPROM_CONFIG15_MAP   3199
 #define EEPROM_CONFIG15_START 3281
 #define EEPROM_CONFIG15_END   3457
+
+//Page 17 (fork addition, gearbox settings) lives in the formerly EMPTY gap 3457...3673
+#define EEPROM_CONFIG17_MARKER 3458 // 1 byte: GEARBOX_SETTINGS_EEPROM_MARKER if the page was ever stored
+#define EEPROM_CONFIG17_START  3460 // 64 bytes, ends before 3524
+#define EEPROM_CONFIG17_END    3523
 
 
 #define EEPROM_CALIBRATION_CLT_CRC  3674

@@ -24,7 +24,7 @@
 //  2. Offset to intra-entity byte
 
 // Page sizes as defined in the .ini file
-constexpr const uint16_t PROGMEM ini_page_sizes[] = { 0, 128, 288, 288, 128, 288, 128, 240, 384, 192, 192, 288, 192, 128, 288, 256, 876 };
+constexpr const uint16_t PROGMEM ini_page_sizes[] = { 0, 128, 288, 288, 128, 288, 128, 240, 384, 192, 192, 288, 192, 128, 288, 256, 876, 64 };
 
 // ========================= Table size calculations =========================
 // Note that these should be computed at compile time, assuming the correct
@@ -413,6 +413,12 @@ page_iterator_t map_page_offset_to_entity(uint8_t pageNumber, uint16_t offset)
       END_OF_PAGE(canTablePage, 1)
     }
 
+    case gearboxPage: // Gearbox settings: one raw block (configPage17 = gearboxSettingsPage_t)
+    {
+      CHECK_RAW(gearboxPage, offset, &configPage17, sizeof(configPage17), 0)
+      END_OF_PAGE(gearboxPage, 1)
+    }
+
     default:
       abort(); // Unknown page number. Not a lot we can do.
       break;
@@ -429,7 +435,7 @@ uint8_t getPageCount(void)
 
 uint8_t getEepromPageCount(void)
 {
-  return getPageCount() - 1U; // all pages except the last one (the CAN table page, 16)
+  return 16U; // pages 1...15 keep the upstream EEPROM layout; page 16 (CAN table) is RAM only, page 17 (gearbox) has its own spot
 }
 
 uint16_t getPageSize(byte pageNum)

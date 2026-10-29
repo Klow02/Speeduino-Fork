@@ -6,20 +6,39 @@
 
 void gearboxInit(gearboxController_t& ctrl, const gearboxHal_t& hal)
 {
-  const bool upOk   = (ctrl.pinPaddleUp   != GEARBOX_NO_PIN);
-  const bool downOk = (ctrl.pinPaddleDown != GEARBOX_NO_PIN);
-  const bool pullup = ctrl.io.paddlesActiveLow; // active-low switches need the internal pull-up
-
-  if (upOk)   { hal.setupInput(ctrl.pinPaddleUp, pullup); }
-  if (downOk) { hal.setupInput(ctrl.pinPaddleDown, pullup); }
-  if (ctrl.pinNeutral != GEARBOX_NO_PIN) { hal.setupInput(ctrl.pinNeutral, ctrl.io.neutralActiveLow); }
-
-  // Both paddles are needed. Without them the module stays off.
-  ctrl.config.enabled = ctrl.config.enabled && upOk && downOk;
-
   ctrl.state = gearbox_state_t();
   ctrl.status = gearboxStatus_t();
   ctrl.primed = false;
+
+  if (!ctrl.config.enabled)
+  {
+    return; // switched off: do not touch any pin
+  }
+
+  // A pin counts only if one is given AND Speeduino is not using it for something else.
+  const bool upOk   = (ctrl.pinPaddleUp   != GEARBOX_NO_PIN) && hal.pinAvailable(ctrl.pinPaddleUp);
+  const bool downOk = (ctrl.pinPaddleDown != GEARBOX_NO_PIN) && hal.pinAvailable(ctrl.pinPaddleDown);
+
+  // Both paddles are needed. Without them the module switches itself off and touches nothing.
+  if (!(upOk && downOk))
+  {
+    ctrl.config.enabled = false;
+    return;
+  }
+
+  // The neutral switch is optional. An unusable pin is forgotten, so it is never read.
+  if ((ctrl.pinNeutral != GEARBOX_NO_PIN) && !hal.pinAvailable(ctrl.pinNeutral))
+  {
+    ctrl.pinNeutral = GEARBOX_NO_PIN;
+  }
+
+  const bool pullup = ctrl.io.paddlesActiveLow; // active-low switches need the internal pull-up
+  hal.setupInput(ctrl.pinPaddleUp, pullup);
+  hal.setupInput(ctrl.pinPaddleDown, pullup);
+  if (ctrl.pinNeutral != GEARBOX_NO_PIN)
+  {
+    hal.setupInput(ctrl.pinNeutral, ctrl.io.neutralActiveLow);
+  }
 }
 
 /** Is this switch pressed? A pin that is not connected is never pressed. */

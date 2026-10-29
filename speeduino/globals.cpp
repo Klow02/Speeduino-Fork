@@ -241,6 +241,7 @@ struct config9 configPage9;
 struct config10 configPage10;
 struct config13 configPage13;
 struct config15 configPage15;
+struct gearboxSettingsPage_t configPage17; // zero-initialised = gearbox disabled
 struct config16 configPage16; // zero-initialised = empty CAN table (nothing is sent)
 
 //byte cltCalibrationTable[CALIBRATION_TABLE_SIZE]; /**< An array containing the coolant sensor calibration values */

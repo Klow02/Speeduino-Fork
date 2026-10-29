@@ -31,6 +31,7 @@
 #include "table3d.h"
 #include "src/FastCRC/FastCRC.h"
 #include "src/controllers/canTable/canTable.h" // CAN message table (page 16)
+#include "src/controllers/gearbox/gearboxSettings.h" // gearbox settings (page 17)
 
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)
   #define BOARD_MAX_DIGITAL_PINS 54 //digital pins +1
@@ -1598,6 +1599,7 @@ extern struct config9 configPage9;
 extern struct config10 configPage10;
 extern struct config13 configPage13;
 extern struct config15 configPage15;
+extern struct gearboxSettingsPage_t configPage17; ///< Page 17: paddle shift gearbox settings (fork addition)
 extern struct config16 configPage16; ///< Page 16: CAN message table (fork addition), see config16
 //extern byte cltCalibrationTable[CALIBRATION_TABLE_SIZE]; /**< An array containing the coolant sensor calibration values */
 //extern byte iatCalibrationTable[CALIBRATION_TABLE_SIZE]; /**< An array containing the inlet air temperature sensor calibration values */

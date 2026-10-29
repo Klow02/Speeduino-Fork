@@ -76,6 +76,8 @@ struct gearboxHal_t
   bool (*readPin)(uint8_t pin);
   /** Milliseconds since start (wraps after ~49 days, handled). */
   uint32_t (*nowMs)(void);
+  /** May this pin be used for a gearbox input? false if it does not exist or Speeduino already uses it for something else. */
+  bool (*pinAvailable)(uint8_t pin);
 };
 
 /** @brief Everything the controller remembers. One instance exists on the real board. */
@@ -97,8 +99,10 @@ struct gearboxController_t
 /**
  * @brief Claim the pins and check the setup.
  *
- * Both paddle pins are required: without them the module switches itself off (config.enabled = false).
- * The neutral pin is optional.
+ * Pins are only touched while the module is enabled (so a never-configured module never changes any pin).
+ * Both paddle pins are required and must be available (hal.pinAvailable): otherwise the module
+ * switches itself off (config.enabled = false). The neutral pin is optional; an unavailable
+ * neutral pin is simply ignored (treated as "not fitted").
  */
 void gearboxInit(gearboxController_t& ctrl, const gearboxHal_t& hal);
 

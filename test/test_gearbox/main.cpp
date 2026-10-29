@@ -9,6 +9,7 @@
 extern void testGearboxSequence(void);
 extern void testGearboxDebounce(void);
 extern void testGearboxController(void);
+extern void testGearboxSettings(void);
 
 #define UNITY_EXCLUDE_DETAILS
 
@@ -24,6 +25,7 @@ void setup()
     testGearboxSequence();
     testGearboxDebounce();
     testGearboxController();
+    testGearboxSettings();
     UNITY_END();
 }
 

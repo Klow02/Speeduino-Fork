@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-gen_can_table_ini.py - writes the TunerStudio definition of page 16 (CAN message table)
-into reference/speeduino.ini.
+gen_can_table_ini.py - writes the TunerStudio definition of page 16 (CAN message table) and
+page 17 (paddle shift gearbox settings) into reference/speeduino.ini.
 
 WHY A GENERATOR?
   The CAN table has 16 messages x 5 settings and 64 signals x 10 settings. In the .ini file every
@@ -9,9 +9,10 @@ WHY A GENERATOR?
   ~650 hand-typed lines with byte offsets. A script cannot mis-count an offset.
 
 WHAT IT DOES
-  1. Page 15 -> 16 pages: updates nPages and the per-page lists (size, identifier, commands).
-  2. Inserts the "page = 16" constants after page 15.
-  3. Inserts the dialogs ([UserDefined]) and one menu entry ([Menu]).
+  1. Page 15 -> 17 pages: updates nPages and the per-page lists (size, identifier, commands).
+  2. Inserts the "page = 16" and "page = 17" constants after page 15.
+  3. Inserts the dialogs ([UserDefined]), the menu entries ([Menu]) and default values
+     ([ConstantsExtensions]) for the gearbox page.
   Every inserted block is wrapped in  "; >>> CAN TABLE ... <<<"  marker lines, so running the script
   again replaces the old blocks instead of adding them twice.
 
@@ -32,6 +33,8 @@ N_CHANNELS, CH_SIZE, CH_BASE = 2, 6, 0
 N_MESSAGES, MSG_SIZE, MSG_BASE = 16, 6, 12
 N_SIGNALS, SIG_SIZE, SIG_BASE = 64, 12, 108
 PAGE_NUMBER, PAGE_SIZE = 16, 876
+GB_PAGE_NUMBER, GB_PAGE_SIZE = 17, 64      # gearbox page, mirrors gearboxSettings.h
+N_PAGES = 17
 assert MSG_BASE == CH_BASE + N_CHANNELS * CH_SIZE
 assert SIG_BASE == MSG_BASE + N_MESSAGES * MSG_SIZE
 assert PAGE_SIZE == SIG_BASE + N_SIGNALS * SIG_SIZE
@@ -88,6 +91,117 @@ def constants():
         a('      %sdiv   = scalar, S16,  %3d, "/", 1.0, 0.0, 1, 32767, 0' % (p, b + 8))
         a('      %soff   = scalar, S16,  %3d, "+", 1.0, 0.0, -32768, 32767, 0' % (p, b + 10))
     return L
+
+
+# Gearbox page: (name, kind, byte, spec). Mirrors struct gearboxSettingsPage_t in gearboxSettings.h.
+# kind "bit": spec = (byte, bit, text0, text1); kind "num": spec = (type, units, min, max)
+GB_BITS = [
+    ("gbEnabled",      0, 0, "Off", "On"),
+    ("gbDownToNeutral", 0, 1, "No", "Yes"),
+    ("gbCutUp",        0, 2, "No", "Yes"),
+    ("gbCutDown",      0, 3, "No", "Yes"),
+    ("gbCutIgn",       0, 4, "No", "Yes"),
+    ("gbCutFuel",      0, 5, "No", "Yes"),
+    ("gbFeedback",     0, 6, "Fixed times", "Position feedback"),
+    ("gbPaddleLow",    1, 0, "Active high (to +V)", "Active low (to ground)"),
+    ("gbNeutralLow",   1, 1, "Active high (to +V)", "Active low (to ground)"),
+]
+GB_NUMS = [
+    ("gbMaxGear",   "U08",  2, "gear", 1, 6),
+    ("gbPinUp",     "U08",  3, "pin", 0, 255),
+    ("gbPinDown",   "U08",  4, "pin", 0, 255),
+    ("gbPinNeutral", "U08", 5, "pin", 0, 255),
+    ("gbCutMinRpm", "U16",  6, "rpm", 0, 20000),
+    ("gbMaxCutMs",  "U16",  8, "ms", 0, 1000),
+    ("gbDownMaxRpm", "U16", 10, "rpm", 0, 20000),
+    ("gbUpTravel",  "U16", 12, "permille", 0, 1000),
+    ("gbDownTravel", "U16", 14, "permille", 0, 1000),
+    ("gbPosTol",    "U16", 16, "permille", 0, 1000),
+    ("gbDebounce",  "U16", 18, "ms", 0, 1000),
+    ("gbCutLead",   "U16", 20, "ms", 0, 1000),
+    ("gbMoveMs",    "U16", 22, "ms", 0, 5000),
+    ("gbHoldMs",    "U16", 24, "ms", 0, 5000),
+    ("gbReturnMs",  "U16", 26, "ms", 0, 5000),
+    ("gbVerifyMs",  "U16", 28, "ms", 0, 5000),
+    ("gbMinInterval", "U16", 30, "ms", 0, 10000),
+    ("gbMaxShiftMs", "U16", 32, "ms", 0, 10000),
+    ("gbFaultLock", "U16", 34, "ms", 0, 60000),
+]
+# Sensible start values for a fresh tune: (name, value). Pins 255 = not connected, so the gearbox stays off.
+GB_DEFAULTS = [("gbEnabled", 0), ("gbDownToNeutral", 0), ("gbCutUp", 1), ("gbCutDown", 0), ("gbCutIgn", 1),
+               ("gbCutFuel", 0), ("gbFeedback", 0), ("gbPaddleLow", 1), ("gbNeutralLow", 1),
+               ("gbMaxGear", 5), ("gbPinUp", 255), ("gbPinDown", 255), ("gbPinNeutral", 255),
+               ("gbCutMinRpm", 3000), ("gbMaxCutMs", 150), ("gbDownMaxRpm", 0), ("gbUpTravel", 800),
+               ("gbDownTravel", 800), ("gbPosTol", 50), ("gbDebounce", 20), ("gbCutLead", 15),
+               ("gbMoveMs", 80), ("gbHoldMs", 30), ("gbReturnMs", 80), ("gbVerifyMs", 0),
+               ("gbMinInterval", 250), ("gbMaxShiftMs", 600), ("gbFaultLock", 1000)]
+
+
+def gb_constants():
+    """The [Constants] lines of page 17."""
+    L = ["page = %d" % GB_PAGE_NUMBER, ";Paddle shift gearbox settings (fork addition). Layout = struct gearboxSettingsPage_t, see gearboxSettings.h."]
+    for name, byte, bit, t0, t1 in GB_BITS:
+        L.append('      %-14s = bits,   U08,  %3d, [%d:%d], "%s", "%s"' % (name, byte, bit, bit, t0, t1))
+    for name, typ, byte, unit, lo, hi in GB_NUMS:
+        L.append('      %-14s = scalar, %s,  %3d, "%s", 1.0, 0.0, %d, %d, 0' % (name, typ, byte, unit, lo, hi))
+    return L
+
+
+def gb_dialogs():
+    """Dialogs of the gearbox page."""
+    L = []
+    a = L.append
+    a('    dialog = gbSwitches, "Switches", yAxis')
+    a('        field = "Gearbox controller",            gbEnabled')
+    a('        field = "Highest gear",                  gbMaxGear,   { gbEnabled }')
+    a('        field = "Downshift from 1st to neutral", gbDownToNeutral, { gbEnabled }')
+    a('        field = "Wait for position feedback",    gbFeedback,  { gbEnabled }')
+    a('    dialog = gbPins, "Inputs", yAxis')
+    a('        field = "Pin numbers: 255 = not connected. Pins already used by Speeduino are refused (gearbox then stays off)."')
+    a('        field = "Upshift paddle pin",   gbPinUp,      { gbEnabled }')
+    a('        field = "Downshift paddle pin", gbPinDown,    { gbEnabled }')
+    a('        field = "Neutral switch pin",   gbPinNeutral, { gbEnabled }')
+    a('        field = "Paddle switches",      gbPaddleLow,  { gbEnabled }')
+    a('        field = "Neutral switch",       gbNeutralLow, { gbEnabled }')
+    a('        field = "Paddle debounce",      gbDebounce,   { gbEnabled }')
+    a('    dialog = gbCut, "Engine cut", yAxis')
+    a('        field = "Cut on upshift",       gbCutUp,      { gbEnabled }')
+    a('        field = "Cut on downshift",     gbCutDown,    { gbEnabled }')
+    a('        field = "Cut ignition",         gbCutIgn,     { gbEnabled }')
+    a('        field = "Cut fuel",             gbCutFuel,    { gbEnabled }')
+    a('        field = "No cut below",         gbCutMinRpm,  { gbEnabled }')
+    a('        field = "Maximum cut time",     gbMaxCutMs,   { gbEnabled }')
+    a('        field = "Refuse downshift above (0 = no check)", gbDownMaxRpm, { gbEnabled }')
+    a('    dialog = gbTiming, "Shift timing", yAxis')
+    a('        field = "Cut starts before move", gbCutLead,    { gbEnabled }')
+    a('        field = "Move time",              gbMoveMs,     { gbEnabled }')
+    a('        field = "Hold time",              gbHoldMs,     { gbEnabled }')
+    a('        field = "Return time",            gbReturnMs,   { gbEnabled }')
+    a('        field = "Gear check time (0 = off)", gbVerifyMs, { gbEnabled }')
+    a('        field = "Minimum time between shifts", gbMinInterval, { gbEnabled }')
+    a('        field = "Whole shift watchdog",   gbMaxShiftMs, { gbEnabled }')
+    a('        field = "Pause after a fault",    gbFaultLock,  { gbEnabled }')
+    a('    dialog = gbActuator, "Actuator", yAxis')
+    a('        field = "Travel in permille of full stroke (1000 = full). No servo driver is built in yet."')
+    a('        field = "Upshift travel",    gbUpTravel,   { gbEnabled }')
+    a('        field = "Downshift travel",  gbDownTravel, { gbEnabled }')
+    a('        field = "Position tolerance", gbPosTol,    { gbEnabled && gbFeedback }')
+    a('    dialog = gbController, "Gearbox controller (paddle shift)", yAxis')
+    a('        field = "Disabled by default. Needs the paddle pins; settings are applied when no shift is running."')
+    a('        panel = gbSwitches')
+    a('        panel = gbPins')
+    a('        panel = gbCut')
+    a('        panel = gbTiming')
+    a('        panel = gbActuator')
+    return L
+
+
+def gb_menu():
+    return ['        subMenu = gbController,      "Gearbox controller"']
+
+
+def gb_extensions():
+    return ["        defaultValue = %s, %d" % (n, v) for n, v in GB_DEFAULTS]
 
 
 def dialogs():
@@ -152,6 +266,7 @@ def menu():
     L.append('        subMenu = canTbl_messages,   "CAN table: messages"')
     for g in range(N_SIGNALS // 16):
         L.append('        subMenu = canTbl_signals%d,   "CAN table: signals %d-%d"' % (g + 1, g * 16 + 1, g * 16 + 16))
+    L.extend(gb_menu())
     return L
 
 
@@ -165,23 +280,25 @@ def strip_blocks(text):
 
 
 def fix_page_lists(text):
-    """nPages and the per-page lists get a 16th entry. A list that already has 16 entries is left alone,
-    so running the script twice does not add a 17th."""
-    def add_item(key, new_item=None):
-        # new_item None = repeat the last item of the list (all pages use the same command)
+    """nPages and the per-page lists get entries for page 16 and 17. The first 15 entries (upstream pages)
+    are kept, the rest is rewritten, so running the script again gives the same result."""
+    def set_tail(key, tail):
+        # tail None = repeat the first item of the list (all pages use the same command)
         def repl(m):
             items = [i.strip() for i in m.group(2).split(",")]
-            if len(items) != PAGE_NUMBER - 1:
-                return m.group(0)
-            return m.group(0) + ", " + (new_item if new_item is not None else items[-1])
+            if len(items) < PAGE_NUMBER - 1:
+                sys.exit("list %s has fewer than 15 entries" % key)
+            base = items[:PAGE_NUMBER - 1]
+            extra = tail if tail is not None else [base[0]] * (N_PAGES - len(base))
+            return m.group(1) + ", ".join(base + extra)
         return re.subn(r"^(\s*%s\s*=\s*)(.*)$" % key, repl, text, flags=re.M)
 
-    nonlocal_text = re.sub(r"nPages\s*=\s*\d+", "nPages              = %d" % PAGE_NUMBER, text, count=1)
-    text = nonlocal_text
-    for key, item in (("pageSize", str(PAGE_SIZE)), ("pageIdentifier", r'"\$tsCanId\x%02X"' % PAGE_NUMBER),
+    text = re.sub(r"nPages\s*=\s*\d+", "nPages              = %d" % N_PAGES, text, count=1)
+    for key, tail in (("pageSize", [str(PAGE_SIZE), str(GB_PAGE_SIZE)]),
+                      ("pageIdentifier", [r'"\$tsCanId\x%02X"' % PAGE_NUMBER, r'"\$tsCanId\x%02X"' % GB_PAGE_NUMBER]),
                       ("pageReadCommand", None), ("pageValueWrite", None), ("pageChunkWrite", None),
                       ("crc32CheckCommand", None), ("burnCommand", None)):
-        text, n = add_item(key, item)
+        text, n = set_tail(key, tail)
         if n == 0:
             sys.exit("ini key not found: " + key)
     return text
@@ -196,16 +313,21 @@ def main():
     marker = "\n;-------------------------------------------------------------------------------\n\n[EventTriggers]"
     if marker not in text:
         sys.exit("cannot find the end of [Constants]")
-    text = text.replace(marker, "\n".join(block("PAGE", constants())) + "\n" + marker, 1)
+    text = text.replace(marker, "\n".join(block("PAGE", constants())) + "\n" + "\n".join(block("GBPAGE", gb_constants())) + "\n" + marker, 1)
 
     # dialogs: directly after the [UserDefined] line
-    text = text.replace("\n[UserDefined]\n", "\n[UserDefined]\n" + "\n".join(block("DIALOGS", dialogs())) + "\n", 1)
+    text = text.replace("\n[UserDefined]\n", "\n[UserDefined]\n" + "\n".join(block("DIALOGS", dialogs() + gb_dialogs())) + "\n", 1)
 
     # menu: directly after the CAN broadcast entry
     anchor = '        subMenu = CanBcast,             "CAN Broadcasting menu", { CANisAvailable }\n'
     if anchor not in text:
         sys.exit("cannot find the CAN menu entry")
     text = text.replace(anchor, anchor + "\n".join(block("MENU", menu())) + "\n", 1)
+
+    # default values: directly after the [ConstantsExtensions] line
+    if "\n[ConstantsExtensions]\n" not in text:
+        sys.exit("cannot find [ConstantsExtensions]")
+    text = text.replace("\n[ConstantsExtensions]\n", "\n[ConstantsExtensions]\n" + "\n".join(block("DEFAULTS", gb_extensions())) + "\n", 1)
 
     INI.write_text(text)
     print("written", INI)

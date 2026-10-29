@@ -35,6 +35,7 @@ uint16_t getPageSize(byte pageNum /**< [in] The page number */ );
 #define progOutsPage  13
 #define ignMap2Page   14
 #define boostvvtPage2 15
+#define gearboxPage   17 // Fork addition: paddle shift gearbox settings (EEPROM, see storage.cpp)
 #define canTablePage  16 // Fork addition: CAN message table (RAM only, see globals.h config16)
 
 // ============================== Per-byte page access ==========================

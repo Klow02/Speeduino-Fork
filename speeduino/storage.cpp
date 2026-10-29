@@ -45,7 +45,7 @@ bool isEepromWritePending(void)
  */
 void writeAllConfig(void)
 {
-  uint8_t pageCount = getEepromPageCount(); // the CAN table page (16) has no EEPROM storage
+  uint8_t pageCount = getEepromPageCount(); // pages 1...15 only: the CAN table page (16) has no EEPROM storage
   uint8_t page = 1U;
   writeConfig(page);
   page = page + 1;
@@ -53,6 +53,10 @@ void writeAllConfig(void)
   {
     writeConfig(page);
     page = page + 1;
+  }
+  if (!isEepromWritePending())
+  {
+    writeConfig(gearboxPage); // fork addition: gearbox settings live in the formerly empty EEPROM gap
   }
 }
 
@@ -325,6 +329,17 @@ void writeConfig(uint8_t pageNum)
       result = write_range((byte *)&configPage15, (byte *)&configPage15+sizeof(configPage15), result.changeWriteAddress(EEPROM_CONFIG15_START));
       break;
 
+    case gearboxPage:
+      /*---------------------------------------------------
+      | Page 17 (fork addition): gearbox settings. A marker byte is stored first so that an
+      | EEPROM which never held this page (all 0xFF or 0x00) is not mistaken for settings.
+      -----------------------------------------------------*/
+      result = result.changeWriteAddress(EEPROM_CONFIG17_MARKER);
+      result.update(GEARBOX_SETTINGS_EEPROM_MARKER);
+      ++result;
+      result = write_range((byte *)&configPage17, (byte *)&configPage17+sizeof(configPage17), result.changeWriteAddress(EEPROM_CONFIG17_START));
+      break;
+
     default:
       break;
   }
@@ -481,6 +496,15 @@ void loadConfig(void)
   load_range(EEPROM_CONFIG15_START, (byte *)&configPage15, (byte *)&configPage15+sizeof(configPage15));  
 
   //*********************************************************************************************************************************************************************************
+  //CONFIG PAGE (17, fork addition): gearbox settings. Only trusted if the marker byte is there, otherwise all zero = gearbox disabled.
+  if (EEPROM.read(EEPROM_CONFIG17_MARKER) == GEARBOX_SETTINGS_EEPROM_MARKER)
+  {
+    load_range(EEPROM_CONFIG17_START, (byte *)&configPage17, (byte *)&configPage17+sizeof(configPage17));
+  }
+  else
+  {
+    memset(&configPage17, 0, sizeof(configPage17));
+  }
 }
 
 /** Read the calibration information from EEPROM.

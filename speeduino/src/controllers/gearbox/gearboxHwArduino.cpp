@@ -6,14 +6,16 @@
  * All decisions are made in gearboxController.cpp / gearboxStateMachine.cpp (tested on a PC).
  * This file only supplies the real hardware functions and copies Speeduino's values.
  *
- * HOW TO SWITCH THE GEARBOX ON (there is no TunerStudio page yet): edit gearboxBoardSetup() below:
- * give it the paddle pins, set config.enabled = true, and optionally register an actuator driver.
- * Until then the module does nothing at all.
+ * HOW TO SWITCH THE GEARBOX ON: open TunerStudio, menu Accessories -> "Gearbox controller" (page 17),
+ * tick "Enable", enter the paddle pins and burn. Until then the module does nothing at all.
+ * The settings are re-read every loop (but never in the middle of a shift).
+ * The servo/actuator driver is NOT written yet: register one in gearboxBoardSetup() below.
  *
  * NOT YET TESTED ON REAL HARDWARE.
  */
 #include "../../../globals.h"
 #include "gearboxController.h"
+#include "gearboxSettings.h"
 #include "gearboxHwArduino.h"
 
 // ------------------------------------------------------------------------------------------------
@@ -23,27 +25,26 @@ static void hwSetupInput(uint8_t pin, bool pullup) { pinMode(pin, pullup ? INPUT
 static bool hwReadPin(uint8_t pin)                 { return digitalRead(pin) != LOW; }
 static uint32_t hwNowMs(void)                      { return millis(); }
 
-static const gearboxHal_t arduinoHal = { hwSetupInput, hwReadPin, hwNowMs };
+/** A pin may be used only if Speeduino does not already use it (sensors, outputs, reserved pins). */
+static bool hwPinAvailable(uint8_t pin) { return !pinIsUsed(pin); }
+
+static const gearboxHal_t arduinoHal = { hwSetupInput, hwReadPin, hwNowMs, hwPinAvailable };
 
 static gearboxController_t controller;
 static bool controllerReady = false;
+static gearboxSettingsPage_t cachedSettings;   ///< settings page as last applied (to detect changes)
+static bool cachedSettingsValid = false;
 
 // ------------------------------------------------------------------------------------------------
 //  >>> THE PLACE TO CONFIGURE THE GEARBOX <<<
 // ------------------------------------------------------------------------------------------------
 /**
- * Called once, before the pins are set up. Default: everything off.
+ * Called once at start. The settings (enable, pins, timings) now come from TunerStudio page 17, so
+ * the only thing left to do here is registering an actuator driver (servo), e.g.:
  *
- * Example (pins are only an example, pick free ones for your board!):
+ *     ctrl.actuator = myServoDriver;   // void myServoDriver(bool enable, int16_t permille)
  *
- *     controller.pinPaddleUp   = 30;
- *     controller.pinPaddleDown = 31;
- *     controller.pinNeutral    = 32;                 // optional, GEARBOX_NO_PIN if not fitted
- *     controller.config.enabled = true;
- *     controller.actuator = myServoDriver;           // void myServoDriver(bool enable, int16_t permille)
- *
- * The timing values (cut time, hold time, debounce, ...) are in gearbox_config_t, see
- * gearboxStateMachine.h. Make sure the chosen pins are not used by anything else in Speeduino.
+ * No driver exists yet, so the shifts run without moving anything (cut only).
  */
 static void gearboxBoardSetup(gearboxController_t& ctrl)
 {
@@ -75,9 +76,10 @@ void gearboxTask(void)
   if (!controllerReady)
   {
     gearboxBoardSetup(controller);
-    gearboxInit(controller, arduinoHal);
     controllerReady = true;
   }
+  // Pick up changes made in TunerStudio (does nothing if unchanged or while a shift runs).
+  gearboxRefreshSettings(configPage17, cachedSettings, cachedSettingsValid, controller, arduinoHal);
   if (!controller.config.enabled)
   {
     return; // disabled: no pin reads, no cut, nothing

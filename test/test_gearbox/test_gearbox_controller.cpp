@@ -16,13 +16,15 @@ struct FakeGearboxHw
   bool     inputSetup[64];   // setupInput() was called for the pin
   bool     pullup[64];       // ... with pull-up
   uint32_t now;
+  bool     pinBlocked[64];   // pinAvailable() answers false for these pins
 };
 static FakeGearboxHw fake;
 
 static void fakeSetup(uint8_t pin, bool pullup) { fake.inputSetup[pin] = true; fake.pullup[pin] = pullup; }
 static bool fakeRead(uint8_t pin) { return fake.level[pin]; }
 static uint32_t fakeNow(void) { return fake.now; }
-static const gearboxHal_t hal = { fakeSetup, fakeRead, fakeNow };
+static bool fakeAvailable(uint8_t pin) { return pin < 64 && !fake.pinBlocked[pin]; }
+static const gearboxHal_t hal = { fakeSetup, fakeRead, fakeNow, fakeAvailable };
 
 static int actuatorCalls;
 static bool lastEnable;
@@ -101,9 +103,39 @@ static void test_init_neutralPinIsOptional(void)
 static void test_init_activeHighPaddlesUseNoPullup(void)
 {
   controller_fixture f;
+  f.c.config.enabled = true;
   f.c.io.paddlesActiveLow = false;
   f.init();
   TEST_ASSERT_FALSE(fake.pullup[30]);
+}
+
+static void test_init_disabledModuleNeverTouchesAnyPin(void)
+{
+  controller_fixture f;                    // enabled = false (default), pins 30/31/32 given
+  f.init();
+  for (int i = 0; i < 64; ++i) { TEST_ASSERT_FALSE(fake.inputSetup[i]); }
+}
+
+static void test_init_paddlePinUsedBySpeeduinoDisablesTheModule(void)
+{
+  controller_fixture f;
+  f.c.config.enabled = true;
+  fake.pinBlocked[31] = true;              // down paddle pin is used by something else
+  f.init();
+  TEST_ASSERT_FALSE(f.c.config.enabled);
+  TEST_ASSERT_FALSE(fake.inputSetup[30]);  // and nothing is touched
+  TEST_ASSERT_FALSE(fake.inputSetup[31]);
+}
+
+static void test_init_neutralPinUsedBySpeeduinoIsIgnored(void)
+{
+  controller_fixture f;
+  f.c.config.enabled = true;
+  fake.pinBlocked[32] = true;
+  f.init();
+  TEST_ASSERT_TRUE(f.c.config.enabled);
+  TEST_ASSERT_EQUAL_UINT8(GEARBOX_NO_PIN, f.c.pinNeutral);
+  TEST_ASSERT_FALSE(fake.inputSetup[32]);
 }
 
 static void test_init_resetsPublishedStatus(void)
@@ -310,6 +342,9 @@ void testGearboxController(void)
   RUN_TEST(test_init_missingDownPaddleDisablesTheModule);
   RUN_TEST(test_init_neutralPinIsOptional);
   RUN_TEST(test_init_activeHighPaddlesUseNoPullup);
+  RUN_TEST(test_init_disabledModuleNeverTouchesAnyPin);
+  RUN_TEST(test_init_paddlePinUsedBySpeeduinoDisablesTheModule);
+  RUN_TEST(test_init_neutralPinUsedBySpeeduinoIsIgnored);
   RUN_TEST(test_init_resetsPublishedStatus);
   RUN_TEST(test_inputs_gearTakenFromLiveValues);
   RUN_TEST(test_inputs_gearZeroIsUnknownNotNeutral);
