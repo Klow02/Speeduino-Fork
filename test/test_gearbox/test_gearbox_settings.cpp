@@ -100,6 +100,23 @@ static void test_apply_polarityBitsAreIndependent(void)
   TEST_ASSERT_FALSE(c.io.neutralActiveLow);
 }
 
+static void test_apply_cutFlagsAreIndependent(void)
+{
+  gearboxSettingsPage_t p = validPage(); gearboxController_t c;
+  p.cutIgnition = 0; p.cutFuel = 1; p.cutOnUpshift = 0; p.cutOnDownshift = 1;
+  gearboxApplySettings(p, c);
+  TEST_ASSERT_FALSE(c.config.cutIgnition);
+  TEST_ASSERT_TRUE(c.config.cutFuel);
+  TEST_ASSERT_FALSE(c.config.cutOnUpshift);
+  TEST_ASSERT_TRUE(c.config.cutOnDownshift);
+  p.cutIgnition = 1; p.cutFuel = 0; p.cutOnUpshift = 1; p.cutOnDownshift = 0;
+  gearboxApplySettings(p, c);
+  TEST_ASSERT_TRUE(c.config.cutIgnition);
+  TEST_ASSERT_FALSE(c.config.cutFuel);
+  TEST_ASSERT_TRUE(c.config.cutOnUpshift);
+  TEST_ASSERT_FALSE(c.config.cutOnDownshift);
+}
+
 static void test_apply_clampsMaxGear(void)
 {
   gearboxSettingsPage_t p = validPage(); gearboxController_t c;
@@ -212,6 +229,7 @@ void testGearboxSettings(void)
   RUN_TEST(test_zeroPageMeansDisabled);
   RUN_TEST(test_apply_copiesEverything);
   RUN_TEST(test_apply_polarityBitsAreIndependent);
+  RUN_TEST(test_apply_cutFlagsAreIndependent);
   RUN_TEST(test_apply_clampsMaxGear);
   RUN_TEST(test_apply_clampsTravelsAndTolerance);
   RUN_TEST(test_refresh_firstCallAppliesAndInitialisesPins);
