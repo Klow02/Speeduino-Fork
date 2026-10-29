@@ -42,6 +42,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "scheduledIO.h"
 #include "secondaryTables.h"
 #include "comms_CAN.h"
+#include "src/controllers/canTable/canTableGlue.h"
 #include "SD_logger.h"
 #include "schedule_calcs.h"
 #include "auxiliaries.h"
@@ -139,6 +140,10 @@ void __attribute__((always_inline)) loop(void)
           }
         }   
       #endif
+
+      // Configurable CAN message table (TunerStudio page 16): sends the frames that are due.
+      // Does nothing on boards other than the Teensy 4.1 and while the table is empty.
+      canTableTask();
           
     if(currentLoopTime > micros_safe())
     {

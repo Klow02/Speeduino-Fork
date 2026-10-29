@@ -58,6 +58,23 @@ void CAN_write()
   Can0.write(outMsg);
 }
 
+// Used by the CAN message table (src/controllers/canTable). A local message object is used so the
+// shared outMsg, which the dash broadcast code fills piece by piece, is never disturbed.
+bool CAN_writeFrame(uint16_t id, const uint8_t data[8])
+{
+  CAN_message_t msg;
+  msg.id = id;
+  msg.len = 8;
+  msg.flags.extended = 0; // standard 11-bit ID
+  memcpy(msg.buf, data, 8);
+  return Can0.write(msg) > 0;
+}
+
+void CAN_setBitrate(uint32_t bitsPerSecond)
+{
+  Can0.setBaudRate(bitsPerSecond);
+}
+
 void sendCANBroadcast(uint8_t frequency)
 {
   switch(configPage4.CANBroadcastProtocol)

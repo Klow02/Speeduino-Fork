@@ -8,6 +8,13 @@
 uint8_t getPageCount(void); 
 
 /**
+ * Number of pages that are stored in the EEPROM (pages 1 ... 15 of upstream Speeduino).
+ * The CAN table page (16) is NOT stored there, so it is not counted. This count also decides the
+ * EEPROM addresses of the page CRCs: it must never change, or all stored CRCs would move.
+ */
+uint8_t getEepromPageCount(void);
+
+/**
  * Page size in bytes
  */
 uint16_t getPageSize(byte pageNum /**< [in] The page number */ );
@@ -28,6 +35,7 @@ uint16_t getPageSize(byte pageNum /**< [in] The page number */ );
 #define progOutsPage  13
 #define ignMap2Page   14
 #define boostvvtPage2 15
+#define canTablePage  16 // Fork addition: CAN message table (RAM only, see globals.h config16)
 
 // ============================== Per-byte page access ==========================
 

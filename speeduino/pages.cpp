@@ -24,7 +24,7 @@
 //  2. Offset to intra-entity byte
 
 // Page sizes as defined in the .ini file
-constexpr const uint16_t PROGMEM ini_page_sizes[] = { 0, 128, 288, 288, 128, 288, 128, 240, 384, 192, 192, 288, 192, 128, 288, 256 };
+constexpr const uint16_t PROGMEM ini_page_sizes[] = { 0, 128, 288, 288, 128, 288, 128, 240, 384, 192, 192, 288, 192, 128, 288, 256, 876 };
 
 // ========================= Table size calculations =========================
 // Note that these should be computed at compile time, assuming the correct
@@ -407,6 +407,12 @@ page_iterator_t map_page_offset_to_entity(uint8_t pageNumber, uint16_t offset)
       END_OF_PAGE(boostvvtPage2, 2)
     }
 
+    case canTablePage: // CAN message table: one raw block (configPage16 = canTableConfig_t)
+    {
+      CHECK_RAW(canTablePage, offset, &configPage16, sizeof(configPage16), 0)
+      END_OF_PAGE(canTablePage, 1)
+    }
+
     default:
       abort(); // Unknown page number. Not a lot we can do.
       break;
@@ -419,6 +425,11 @@ page_iterator_t map_page_offset_to_entity(uint8_t pageNumber, uint16_t offset)
 uint8_t getPageCount(void)
 {
   return _countof(ini_page_sizes);
+}
+
+uint8_t getEepromPageCount(void)
+{
+  return getPageCount() - 1U; // all pages except the last one (the CAN table page, 16)
 }
 
 uint16_t getPageSize(byte pageNum)

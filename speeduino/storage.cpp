@@ -45,7 +45,7 @@ bool isEepromWritePending(void)
  */
 void writeAllConfig(void)
 {
-  uint8_t pageCount = getPageCount();
+  uint8_t pageCount = getEepromPageCount(); // the CAN table page (16) has no EEPROM storage
   uint8_t page = 1U;
   writeConfig(page);
   page = page + 1;
@@ -541,7 +541,7 @@ void writeCalibrationPage(uint8_t pageNum)
 
 static eeprom_address_t compute_crc_address(uint8_t pageNum)
 {
-  return EEPROM_LAST_BARO-((getPageCount() - pageNum)*sizeof(uint32_t));
+  return EEPROM_LAST_BARO-((getEepromPageCount() - pageNum)*sizeof(uint32_t)); // EEPROM page count: keeps the stored CRC addresses where they were
 }
 
 /** Write CRC32 checksum to EEPROM.

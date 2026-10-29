@@ -47,6 +47,11 @@ void can_Command(void);
 void obd_response(uint8_t therequestedPID , uint8_t therequestedPIDlow, uint8_t therequestedPIDhigh);
 void readAuxCanBus();
 
+/** Sends one standard-ID, 8-byte frame on CAN1 without touching outMsg. Used by the CAN message table. */
+bool CAN_writeFrame(uint16_t id, const uint8_t data[8]);
+/** Changes the bus speed of CAN1 (bits per second). CAN1 is shared with the normal Speeduino CAN code. */
+void CAN_setBitrate(uint32_t bitsPerSecond);
+
 extern CAN_message_t outMsg;
 extern CAN_message_t inMsg;
 
